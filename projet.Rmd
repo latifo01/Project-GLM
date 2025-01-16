@@ -1,0 +1,274 @@
+---
+title: "PROJET GLM"
+author: "ERWAN, Kevin, Ibrahim"
+date: "2024-12-27"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Charger les packages
+library(corrplot)
+library(ggplot2)
+library(dplyr)
+
+
+```
+
+
+
+
+
+```{r}
+# Charger les données
+donnees <- read.csv("projet.csv", header = TRUE, sep = ",")
+
+# Standardiser les variables continues
+donnees$temperature1 <- scale(donnees$temperature1) 
+donnees$temperature2 <- scale(donnees$temperature2)  
+donnees$vent <- scale(donnees$vent)  
+donnees$humidite <- scale(donnees$humidite) 
+
+
+donnees <- donnees[, -1]
+
+# Convertir les variables catégoriques en facteurs
+donnees$saison <- as.factor(donnees$saison)
+donnees$mois <- as.factor(donnees$mois)
+donnees$jour_mois <- as.factor(donnees$jour_mois)
+donnees$jour_semaine <- as.factor(donnees$jour_semaine)
+donnees$horaire <- as.factor(donnees$horaire)
+donnees$jour_travail <- as.factor(donnees$jour_travail)
+donnees$meteo <- as.factor(donnees$meteo)
+donnees$vacances <- as.factor(donnees$vacances)
+
+donnees$velos <- as.numeric(donnees$velos)  
+
+set.seed(123)  # Fixer une graine pour la reproductibilité
+train <- sample(1:nrow(donnees), 0.7 * nrow(donnees))  
+train_data <- donnees[train, ]
+test_data <- donnees[-train, ]  
+
+
+```
+Maintenant que nous avons importé les données, nous allons les analyser pour voir les relations entre les variables.
+
+```{r}
+
+# Création de tables de fréquences pour chaque variable catégorique
+tables <- list(
+  saison = as.data.frame(table(
+    Saison = factor(donnees$saison, 
+                    levels = c(1, 2, 3, 4), 
+                    labels = c("Hiver", "Printemps", "Été", "Automne"))
+  )),
+  mois = as.data.frame(table(
+    Mois = factor(donnees$mois, 
+                  levels = 1:12, 
+                  labels = c("Janvier", "Février", "Mars", "Avril", "Mai", 
+                             "Juin", "Juillet", "Août", "Septembre", 
+                             "Octobre", "Novembre", "Décembre"))
+  )),
+  jour_semaine = as.data.frame(table(
+    JourSemaine = factor(donnees$jour_semaine, 
+                         levels = 1:7, 
+                         labels = c("Dimanche", "Lundi", "Mardi", 
+                                    "Mercredi", "Jeudi", 
+                                    "Vendredi", "Samedi"))
+  )),
+  horaire = as.data.frame(table(
+    Horaire = factor(donnees$horaire, 
+                     levels = 1:5, 
+                     labels = c("[0h-7h]", "[7h-11h]", "[11h-15h]", 
+                                "[15h-19h]", "[19h-24h]"))
+  )),
+  jour_travail = as.data.frame(table(
+    JourTravail = factor(donnees$jour_travail, 
+                         levels = c(1, 2), 
+                         labels = c("Non", "Oui"))
+  )),
+  vacances = as.data.frame(table(
+    Vacances = factor(donnees$vacances, 
+                      levels = c(1, 2), 
+                      labels = c("Non", "Oui"))
+  )),
+  meteo = as.data.frame(table(
+    Meteo = factor(donnees$meteo, 
+                   levels = c(1, 2, 3), 
+                   labels = c("Claire", "Nuageux/Brumeux", "Pluie/Neige"))
+  ))
+)
+
+tables$saison 
+tables$mois
+tables$jour_semaine
+tables$horaire
+tables$jour_travail
+tables$vacances
+tables$meteo
+
+
+cat("summary pour température1", summary(donnees$temperature1))
+cat("\n")
+cat("summary pour température2", summary(donnees$temperature2))
+cat("\n")
+cat("summary pour vent", summary(donnees$vent))
+cat("\n")
+cat("summary pour humidité", summary(donnees$humidite))
+
+
+
+
+
+
+
+```
+
+Ainsi, on peut afficher la corrélation entre les variables quantitatives.
+
+```{r}
+
+
+variables <- train_data[, c("temperature1", "temperature2", "vent", "humidite", "velos")]
+correlation <- cor(variables)
+corrplot(correlation, method = "circle")
+
+
+```
+on peut voir que les variables temperature1 et temperature2 sont fortement corrélées.
+la variable vent est corrélée négativement avec la variable velos.
+la variable humidité est corrélée négativement avec la variable velos.
+
+
+Nous allons maintenant construire des boxplots pour voir la relation entre les variables catégoriques et la variable cible.
+
+```{r}
+#boxplot pour toutes les variables catégoriques en utilisant ggplot2 avec legend, titre et labels
+# Boxplot avec points pour chaque variable catégorique
+par(mfrow = c(2, 4))
+ggplot(data = train_data, aes(x = saison, y = velos)) +
+  geom_boxplot(fill = "lightblue", alpha = 0.6) + 
+  geom_jitter(color = "darkblue", width = 0.2, alpha = 0.5) +
+  labs(title = "Nombre de vélos loués par saison", 
+       x = "Saison", y = "Nombre de vélos loués") +
+  theme_minimal()
+
+ggplot(data = train_data, aes(x = mois, y = velos)) +
+  geom_boxplot(fill = "lightblue", alpha = 0.6) +
+  geom_jitter(color = "darkblue", width = 0.2, alpha = 0.5) +
+  labs(title = "Nombre de vélos loués par mois", 
+       x = "Mois", y = "Nombre de vélos loués") +
+  theme_minimal()
+
+ggplot(data = train_data, aes(x = jour_semaine, y = velos)) +
+  geom_boxplot(fill = "lightblue", alpha = 0.6) +
+  geom_jitter(color = "darkblue", width = 0.2, alpha = 0.5) +
+  labs(title = "Nombre de vélos loués par jour de la semaine", 
+       x = "Jour de la semaine", y = "Nombre de vélos loués") +
+  theme_minimal()
+
+ggplot(data = train_data, aes(x = horaire, y = velos)) +
+  geom_boxplot(fill = "lightblue", alpha = 0.6) +
+  geom_jitter(color = "darkblue", width = 0.2, alpha = 0.5) +
+  labs(title = "Nombre de vélos loués par horaire", 
+       x = "Horaire", y = "Nombre de vélos loués") +
+  theme_minimal()
+
+ggplot(data = train_data, aes(x = jour_travail, y = velos)) +
+  geom_boxplot(fill = "lightblue", alpha = 0.6) +
+  geom_jitter(color = "darkblue", width = 0.2, alpha = 0.5) +
+  labs(title = "Nombre de vélos loués par jour de travail", 
+       x = "Jour de travail", y = "Nombre de vélos loués") +
+  theme_minimal()
+
+ggplot(data = train_data, aes(x = vacances, y = velos)) +
+  geom_boxplot(fill = "lightblue", alpha = 0.6) +
+  geom_jitter(color = "darkblue", width = 0.2, alpha = 0.5) +
+  labs(title = "Nombre de vélos loués par vacances", 
+       x = "Vacances", y = "Nombre de vélos loués") +
+  theme_minimal()
+
+ggplot(data = train_data, aes(x = meteo, y = velos)) +
+  geom_boxplot(fill = "lightblue", alpha = 0.6) +
+  geom_jitter(color = "darkblue", width = 0.2, alpha = 0.5) +
+  labs(title = "Nombre de vélos loués par météo", 
+       x = "Météo", y = "Nombre de vélos loués") +
+  theme_minimal()
+
+
+
+
+
+
+
+
+```
+En analysant les boxplots, on peut voir que les variables saison, mois, jour_semaine, horaire, jour_travail, vacances et meteo ont une influence sur le nombre de vélos loués.
+
+nous allons etudier la relation entre les variables quantitatives et la variable cible.
+
+```{r}
+
+ggplot(data = train_data, aes(x = temperature1, y = velos)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Relation entre Température et Nombre de vélos loués", 
+       x = "Température moyenne (°C)", 
+       y = "Nombre de vélos loués") +
+  theme_minimal()
+
+ggplot(data = train_data, aes(x = temperature2, y = velos)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Relation entre Température ressentie et Nombre de vélos loués", 
+       x = "Température ressentie (°C)", 
+       y = "Nombre de vélos loués") +
+  theme_minimal()
+
+ggplot(data = train_data, aes(x = vent, y = velos)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Relation entre Vitesse du vent et Nombre de vélos loués", 
+       x = "Vitesse du vent (km/h)", 
+       y = "Nombre de vélos loués") +
+  theme_minimal()
+
+ggplot(data = train_data, aes(x = humidite, y = velos)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Relation entre Humidité et Nombre de vélos loués", 
+       x = "Humidité (%)", 
+       y = "Nombre de vélos loués") +
+  theme_minimal()
+
+
+
+
+
+
+```
+
+
+De l'interpretation de ces graphiques, on peut voir que le vent ne présente pas un impact significatif sur le nombre de vélos loués.
+la température1 et la température2 ont un impact positif sur le nombre de vélos loués.
+l'humidité a un impact négatif sur le nombre de vélos loués.
+
+
+Nous allons maintenant construire un modèle de régression linéaire multiple pour prédire le nombre de vélos loués.
+
+```{r}
+modele=lm(velos~temperature1+temperature2+vent+humidite+saison+horaire+jour_travail+meteo+vacances,data=train_data)
+summary(modele)
+```
+nous allons construire un modèle en ajoutant une à une les variables explicatives pour voir l'impact de chaque variable sur le modèle.
+
+```{r}
+
+
+````
+
+
+
